@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import CartSidebar from '../components/user/CartSidebar';
-import MenuDisplay from '../components/user/MenuDisplay';
-import RecentOrders from '../components/user/RecentOrders';
-import RestaurantsList from '../components/user/RestaurantsList';
-import TrainSearch from '../components/user/TrainSearch';
-import UserHeader from '../components/user/UserHeader';
-import { useAuth } from '../hooks/useAuth';
-import api, { orderService } from '../services/apiService';
+import { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import CartSidebar from "../components/user/CartSidebar";
+import MenuDisplay from "../components/user/MenuDisplay";
+import RecentOrders from "../components/user/RecentOrders";
+import RestaurantsList from "../components/user/RestaurantsList";
+import TrainSearch from "../components/user/TrainSearch";
+import UserHeader from "../components/user/UserHeader";
+import { useAuth } from "../hooks/useAuth";
+import api, { orderService } from "../services/apiService";
 
 export default function UserDashboard() {
   const { user, logout } = useAuth();
@@ -15,48 +15,57 @@ export default function UserDashboard() {
   const [restaurants, setRestaurants] = useState([]);
   const [selectedRestaurant, setSelectedRestaurant] = useState(null);
   const [cart, setCart] = useState([]);
-  const [pnrOrTrain, setPnrOrTrain] = useState('');
+  const [pnrOrTrain, setPnrOrTrain] = useState("");
   const [train, setTrain] = useState(null);
   const [stations, setStations] = useState([]);
   const [menu, setMenu] = useState([]);
-  const [journeyDate, setJourneyDate] = useState('');
+  const [journeyDate, setJourneyDate] = useState("");
   const [selectedStation, setSelectedStation] = useState(null);
-  const [currentStation, setCurrentStation] = useState('');
+  const [currentStation, setCurrentStation] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [showCheckout, setShowCheckout] = useState(false);
   const [checkoutData, setCheckoutData] = useState({
-    fullName: '',
-    email: '',
-    pnr: '',
-    seatNumber: '',
-    deliveryDate: '',
-    paymentMode: 'CASH',
-    notes: ''
+    fullName: "",
+    number: "",
+    email: "",
+    pnr: "",
+    seatNumber: "",
+    coachNumber: "",
+    deliveryDate: "",
+    deliveryTime: "",
+    paymentMode: "CASH",
+    notes: "",
   });
 
   useEffect(() => {
-    if (!user || user.role !== 'user') {
-      navigate('/login');
+    if (!user || user.role !== "user") {
+      navigate("/login");
     }
   }, [user, navigate]);
 
-  const addToCart = useCallback((item) => {
-    const existingItem = cart.find(c => c._id === item._id);
-    if (existingItem) {
-      setCart(cart.map(c =>
-        c._id === item._id
-          ? { ...c, quantity: c.quantity + 1 }
-          : c
-      ));
-    } else {
-      setCart([...cart, { ...item, quantity: 1 }]);
-    }
-  }, [cart]);
+  const addToCart = useCallback(
+    (item) => {
+      const existingItem = cart.find((c) => c._id === item._id);
+      if (existingItem) {
+        setCart(
+          cart.map((c) =>
+            c._id === item._id ? { ...c, quantity: c.quantity + 1 } : c,
+          ),
+        );
+      } else {
+        setCart([...cart, { ...item, quantity: 1 }]);
+      }
+    },
+    [cart],
+  );
 
-  const removeFromCart = useCallback((index) => {
-    setCart(cart.filter((_, i) => i !== index));
-  }, [cart]);
+  const removeFromCart = useCallback(
+    (index) => {
+      setCart(cart.filter((_, i) => i !== index));
+    },
+    [cart],
+  );
 
   const handlePnrChange = useCallback((e) => {
     setPnrOrTrain(e.target.value);
@@ -64,18 +73,18 @@ export default function UserDashboard() {
 
   const handleSearchTrain = async (date) => {
     if (!pnrOrTrain.trim()) {
-      setError('Please enter a train number');
+      setError("Please enter a train number");
       return;
     }
 
     if (!date) {
-      setError('Please select a journey date');
+      setError("Please select a journey date");
       return;
     }
 
     try {
       setLoading(true);
-      
+
       // Call the train API endpoint with train number
       const resp = await api.get(`/train/${pnrOrTrain}`);
       const trainData = resp.data;
@@ -85,34 +94,37 @@ export default function UserDashboard() {
           trainNumber: trainData.trainNo,
           trainName: trainData.trainName,
           source: trainData.source || trainData.stations[0].name,
-          destination: trainData.destination || trainData.stations[trainData.stations.length - 1].name,
-          stations: trainData.stations
+          destination:
+            trainData.destination ||
+            trainData.stations[trainData.stations.length - 1].name,
+          stations: trainData.stations,
         };
 
         setTrain(formattedTrain);
         setStations(trainData.stations);
-        setCurrentStation(trainData.currentStation || '');
+        setCurrentStation(trainData.currentStation || "");
         setJourneyDate(date);
         setSelectedStation(null);
-        
+
         // For now, set empty restaurants - will load when user selects station
         setRestaurants([]);
         setSelectedRestaurant(null);
         setMenu([]);
         setCart([]);
-        setError('');
+        setError("");
       } else {
         setTrain(null);
         setStations([]);
         setRestaurants([]);
-        setError('Train not found or no stations available');
+        setError("Train not found or no stations available");
       }
     } catch (err) {
-      console.error('Failed to search trains:', err);
+      console.error("Failed to search trains:", err);
       setTrain(null);
       setStations([]);
       setRestaurants([]);
-      const errorMsg = err.response?.data?.message || 'Train not found or invalid number';
+      const errorMsg =
+        err.response?.data?.message || "Train not found or invalid number";
       setError(errorMsg);
     } finally {
       setLoading(false);
@@ -122,28 +134,38 @@ export default function UserDashboard() {
   const handleSelectRestaurant = useCallback(async (restaurant) => {
     try {
       setLoading(true);
-      setError('');
+      setError("");
       setSelectedRestaurant(restaurant);
-      
-      console.log('Loading menu for restaurant:', restaurant._id, restaurant.name);
-      
-      const resp = await api.get(
-        `/vendors/restaurants/${restaurant._id}/menu`
+
+      console.log(
+        "Loading menu for restaurant:",
+        restaurant._id,
+        restaurant.name,
       );
-      
-      console.log('Menu response:', resp.data);
-      
+
+      const resp = await api.get(`/vendors/restaurants/${restaurant._id}/menu`);
+
+      console.log("Menu response:", resp.data);
+
       // Handle both array and object response formats
-      const menuData = Array.isArray(resp.data) ? resp.data : (resp.data.menu || []);
-      
-      console.log('Menu items:', menuData);
-      
+      const menuData = Array.isArray(resp.data)
+        ? resp.data
+        : resp.data.menu || [];
+
+      console.log("Menu items:", menuData);
+
       setMenu(menuData);
       setCart([]); // Clear cart when selecting new restaurant
     } catch (err) {
-      console.error('Error loading menu:', err.response?.status, err.response?.data || err.message);
+      console.error(
+        "Error loading menu:",
+        err.response?.status,
+        err.response?.data || err.message,
+      );
       setMenu([]);
-      setError(`Failed to load menu: ${err.response?.data?.message || err.message}`);
+      setError(
+        `Failed to load menu: ${err.response?.data?.message || err.message}`,
+      );
       setSelectedRestaurant(null);
     } finally {
       setLoading(false);
@@ -154,13 +176,13 @@ export default function UserDashboard() {
     try {
       setLoading(true);
       setSelectedStation(station);
-      setError('');
-      
+      setError("");
+
       // Fetch restaurants available at this station
       const resp = await api.get(
-        `/vendors/restaurants/station/${encodeURIComponent(station.name)}`
+        `/vendors/restaurants/station/${encodeURIComponent(station.name)}`,
       );
-      
+
       if (resp.data.success && resp.data.restaurants) {
         setRestaurants(resp.data.restaurants);
         setSelectedRestaurant(null);
@@ -171,18 +193,18 @@ export default function UserDashboard() {
         setError(`No restaurants found at ${station.name}`);
       }
     } catch (err) {
-      console.error('Failed to load restaurants for station:', err);
+      console.error("Failed to load restaurants for station:", err);
       setRestaurants([]);
-      setError('Failed to load restaurants for this station');
+      setError("Failed to load restaurants for this station");
     } finally {
       setLoading(false);
     }
   }, []);
 
   const handleCheckoutChange = useCallback((field, value) => {
-    setCheckoutData(prev => ({
+    setCheckoutData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   }, []);
 
@@ -192,69 +214,95 @@ export default function UserDashboard() {
 
       const orderData = {
         restaurantId: selectedRestaurant?._id,
-        items: cart.map(item => ({
+        items: cart.map((item) => ({
           itemId: item._id,
           quantity: item.quantity,
-          price: item.price
+          price: item.price,
         })),
         customer: {
           name: checkoutData.fullName,
           email: checkoutData.email,
-          phone: checkoutData.email // Will update if phone field added
+          phone: checkoutData.number,
         },
         journey: {
           trainNo: train?.trainNumber,
           doj: journeyDate,
           pnr: checkoutData.pnr,
           seat: checkoutData.seatNumber,
-          station: selectedStation?.name
+          coach: checkoutData.coachNumber,
+          station: selectedStation?.name,
         },
         pricing: {
-          subtotal: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0),
+          subtotal: cart.reduce(
+            (sum, item) => sum + item.price * item.quantity,
+            0,
+          ),
           deliveryFee: 20,
-          total: cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 20
+          total:
+            cart.reduce((sum, item) => sum + item.price * item.quantity, 0) +
+            20,
         },
-        paymentMethod: checkoutData.paymentMode === 'CASH' ? 'COD' : 'PREPAID',
+        paymentMethod: checkoutData.paymentMode === "CASH" ? "COD" : "PREPAID",
         deliveryDate: checkoutData.deliveryDate,
-        notes: checkoutData.notes
+        deliveryTime: checkoutData.deliveryTime,
+        notes: checkoutData.notes,
       };
 
-      console.log('Placing order with data:', orderData);
+      console.log("Placing order with data:", orderData);
 
       const resp = await orderService.createOrder(orderData);
-      
-      console.log('Order response:', resp.data);
-      
+
+      console.log("Order response:", resp.data);
+
       // Reset form
       setCart([]);
       setCheckoutData({
-        fullName: '',
-        email: '',
-        pnr: '',
-        seatNumber: '',
-        deliveryDate: '',
-        paymentMode: 'CASH',
-        notes: ''
+        fullName: "",
+        number: "",
+        email: "",
+        pnr: "",
+        seatNumber: "",
+        coachNumber: "",
+        deliveryDate: "",
+        deliveryTime: "",
+        paymentMode: "CASH",
+        notes: "",
       });
       setShowCheckout(false);
-      setError('');
-      alert('Order placed successfully! Order ID: ' + (resp.data.order?.orderId || 'N/A'));
+      setError("");
+      alert(
+        "Order placed successfully! Order ID: " +
+          (resp.data.order?.orderId || "N/A"),
+      );
     } catch (err) {
-      console.error('Failed to place order:', err.response?.data || err.message);
-      setError('Failed to place order: ' + (err.response?.data?.message || err.message));
+      console.error(
+        "Failed to place order:",
+        err.response?.data || err.message,
+      );
+      setError(
+        "Failed to place order: " +
+          (err.response?.data?.message || err.message),
+      );
     } finally {
       setLoading(false);
     }
-  }, [train, selectedRestaurant, cart, checkoutData, journeyDate, selectedStation]);
+  }, [
+    train,
+    selectedRestaurant,
+    cart,
+    checkoutData,
+    journeyDate,
+    selectedStation,
+  ]);
 
   const handleLogout = useCallback(() => {
     logout();
-    navigate('/login');
+    navigate("/login");
   }, [logout, navigate]);
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <UserHeader userName={user?.name || 'User'} onLogout={handleLogout} />
+      <UserHeader userName={user?.name || "User"} onLogout={handleLogout} />
 
       <main className="max-w-7xl mx-auto p-3 md:p-6">
         {error && (
@@ -291,7 +339,7 @@ export default function UserDashboard() {
 
           {/* Right Section - Recent Orders + Cart */}
           <div className="lg:col-span-1 space-y-4">
-            <RecentOrders onSelect={(order) => alert('Selected order: ' + order.orderId)} />
+            <RecentOrders />
             <CartSidebar
               cart={cart}
               onRemoveItem={removeFromCart}
@@ -322,14 +370,22 @@ export default function UserDashboard() {
                 <div className="space-y-1 text-sm">
                   {cart.map((item, idx) => (
                     <div key={idx} className="flex justify-between">
-                      <span>{item.name} x{item.quantity}</span>
+                      <span>
+                        {item.name} x{item.quantity}
+                      </span>
                       <span>₹{item.price * item.quantity}</span>
                     </div>
                   ))}
                   <div className="border-t pt-1 mt-2 font-bold">
                     <div className="flex justify-between">
                       <span>Subtotal:</span>
-                      <span>₹{cart.reduce((sum, item) => sum + (item.price * item.quantity), 0)}</span>
+                      <span>
+                        ₹
+                        {cart.reduce(
+                          (sum, item) => sum + item.price * item.quantity,
+                          0,
+                        )}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span>Delivery:</span>
@@ -337,7 +393,13 @@ export default function UserDashboard() {
                     </div>
                     <div className="flex justify-between text-secondary">
                       <span>Total:</span>
-                      <span>₹{cart.reduce((sum, item) => sum + (item.price * item.quantity), 0) + 20}</span>
+                      <span>
+                        ₹
+                        {cart.reduce(
+                          (sum, item) => sum + item.price * item.quantity,
+                          0,
+                        ) + 20}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -345,78 +407,144 @@ export default function UserDashboard() {
 
               {/* Form Fields */}
               <div>
-                <label className="block text-sm font-semibold mb-1">Full Name</label>
+                <label className="block text-sm font-semibold mb-1">
+                  Full Name
+                </label>
                 <input
                   type="text"
                   value={checkoutData.fullName}
-                  onChange={(e) => handleCheckoutChange('fullName', e.target.value)}
+                  onChange={(e) =>
+                    handleCheckoutChange("fullName", e.target.value)
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-secondary outline-none"
                   placeholder="Your full name"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-1">Email</label>
+                <label className="block text-sm font-semibold mb-1">
+                  Number
+                </label>
+                <input
+                  type="tel"
+                  value={checkoutData.number}
+                  onChange={(e) =>
+                    handleCheckoutChange("number", e.target.value)
+                  }
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-secondary outline-none"
+                  placeholder="your phone number"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold mb-1">
+                  Email
+                </label>
                 <input
                   type="email"
                   value={checkoutData.email}
-                  onChange={(e) => handleCheckoutChange('email', e.target.value)}
+                  onChange={(e) =>
+                    handleCheckoutChange("email", e.target.value)
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-secondary outline-none"
                   placeholder="your@email.com"
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-semibold mb-1">Seat Number</label>
-                <input
-                  type="text"
-                  value={checkoutData.seatNumber}
-                  onChange={(e) => handleCheckoutChange('seatNumber', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-secondary outline-none"
-                  placeholder="e.g., A1"
-                />
+              <div className="flex items-center">
+                <label className=" w-full block text-sm font-semibold mb-1">
+                  Coach & Seat
+                </label>
+                <div className="flex gap-2 w-full">
+                  <input
+                    type="text"
+                    value={checkoutData.coachNumber}
+                    onChange={(e) =>
+                      handleCheckoutChange("coachNumber", e.target.value)
+                    }
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-secondary outline-none"
+                    placeholder="e.g., B1"
+                  />
+                  <input
+                    type="text"
+                    value={checkoutData.seatNumber}
+                    onChange={(e) =>
+                      handleCheckoutChange("seatNumber", e.target.value)
+                    }
+                    required
+                    className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-secondary outline-none"
+                    placeholder="e.g., 46"
+                  />
+                </div>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-1">PNR / Booking Reference</label>
+                <label className="block text-sm font-semibold mb-1">
+                  PNR / Booking Reference
+                </label>
                 <input
                   type="text"
                   value={checkoutData.pnr}
-                  onChange={(e) => handleCheckoutChange('pnr', e.target.value)}
+                  onChange={(e) => handleCheckoutChange("pnr", e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-secondary outline-none"
-                  placeholder="e.g., ABC1234567"
+                  placeholder="e.g., 6234567890"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-1">Delivery Date</label>
-                <input
-                  type="date"
-                  value={checkoutData.deliveryDate}
-                  onChange={(e) => handleCheckoutChange('deliveryDate', e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-secondary outline-none"
-                />
-                <p className="text-xs text-gray-500 mt-1">Default: Train arrival at {selectedStation?.name}</p>
+                <label className="block text-sm font-semibold mb-1">
+                  Delivery Date & Time
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="date"
+                    value={checkoutData.deliveryDate}
+                    onChange={(e) =>
+                      handleCheckoutChange("deliveryDate", e.target.value)
+                    }
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-secondary outline-none"
+                  />
+                  <input
+                    type="time"
+                    value={checkoutData.deliveryTime}
+                    onChange={(e) =>
+                      handleCheckoutChange("deliveryTime", e.target.value)
+                    }
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-secondary outline-none"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Delivery time at {selectedStation?.name}
+                </p>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-1">Payment Mode</label>
+                <label className="block text-sm font-semibold mb-1">
+                  Payment Mode
+                </label>
                 <select
                   value={checkoutData.paymentMode}
-                  onChange={(e) => handleCheckoutChange('paymentMode', e.target.value)}
+                  onChange={(e) =>
+                    handleCheckoutChange("paymentMode", e.target.value)
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-secondary outline-none"
                 >
-                  <option value="CASH">Cash</option>
-                  <option value="UPI">UPI</option>
-                  <option value="CARD">Card</option>
+                  <option value="CASH">Cash on Delivery</option>
+                  <option value="PREPAID">Prepaid</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-semibold mb-1">Special Instructions</label>
+                <label className="block text-sm font-semibold mb-1">
+                  Special Instructions
+                </label>
                 <textarea
                   value={checkoutData.notes}
-                  onChange={(e) => handleCheckoutChange('notes', e.target.value)}
+                  onChange={(e) =>
+                    handleCheckoutChange("notes", e.target.value)
+                  }
                   className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-secondary outline-none"
                   rows="3"
                   placeholder="Any special requests?"
@@ -435,9 +563,13 @@ export default function UserDashboard() {
                 <button
                   onClick={handleSubmitCheckout}
                   className="flex-1 bg-secondary hover:bg-yellow-500 text-white py-2 rounded font-semibold transition disabled:opacity-50"
-                  disabled={loading || !checkoutData.fullName || !checkoutData.seatNumber}
+                  disabled={
+                    loading ||
+                    !checkoutData.fullName ||
+                    !checkoutData.seatNumber
+                  }
                 >
-                  {loading ? 'Processing...' : 'Place Order'}
+                  {loading ? "Processing..." : "Place Order"}
                 </button>
               </div>
             </div>

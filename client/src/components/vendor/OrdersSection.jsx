@@ -9,6 +9,7 @@ export default function OrdersSection({
   showOrderDetails,
   onToggleDetails,
   onStatusChange,
+  onAcknowledge,
 }) {
   return (
     <div className="col-span-2">
@@ -24,11 +25,13 @@ export default function OrdersSection({
         <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
           {[
             "ALL",
-            "NEW",
+            "ACCEPTED",
             "ACKNOWLEDGED",
             "OUT_FOR_DELIVERY",
             "DELIVERED",
             "DECLINED",
+            "FAILED",
+            "UNDELIVERED",
           ].map((status) => (
             <button
               key={status}
@@ -61,6 +64,7 @@ export default function OrdersSection({
                   )
                 }
                 onStatusChange={onStatusChange}
+                onAcknowledge={onAcknowledge}
               />
             ))}
           </div>

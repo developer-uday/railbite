@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import express from "express";
 import helmet from "helmet";
 import connectDB from "./config/db.config.js";
+import migratePasswordsToHash from "./utils/migratePasswords.js";
 import adminRoutes from "./routes/adminRoutes.js";
 import authRoutes from "./routes/authRoutes.js";
 import orderRoutes from "./routes/orderRoutes.js";
@@ -43,6 +44,10 @@ app.use(bodyParser.urlencoded({ extended: true }));
 
 // Connect to MongoDB
 connectDB();
+
+// Run password migration on startup
+console.log("🔐 Checking for plain text passwords to migrate...");
+migratePasswordsToHash();
 
 // Routes
 app.use("/api/auth", authRoutes);

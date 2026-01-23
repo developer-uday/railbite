@@ -15,6 +15,7 @@ import {
   getOrderDetails,
   updateOrderStatus,
   acknowledgeOrder,
+  declineOrder,
   getStoreStatus,
   getRestaurantsByStation,
 } from "../controllers/vendorController.js";
@@ -135,6 +136,14 @@ router.patch(
   authMiddleware,
   authorize("vendor"),
   acknowledgeOrder
+);
+
+// Decline order
+router.patch(
+  "/orders/:orderId/decline",
+  authMiddleware,
+  authorize("vendor"),
+  declineOrder
 );
 
 // Update order status

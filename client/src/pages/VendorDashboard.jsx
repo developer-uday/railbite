@@ -65,12 +65,15 @@ export default function VendorDashboard() {
   }, [user, navigate, loadVendorData]);
 
   // Calculate stats
+  const vendorVisibleStatuses = ["ACCEPTED", "ACKNOWLEDGED", "OUT_FOR_DELIVERY", "DELIVERED", "DECLINED", "FAILED", "UNDELIVERED"];
+  const vendorOrders = orders.filter(o => vendorVisibleStatuses.includes(o.orderStatus));
+
   const stats = {
-    totalOrders: orders.length,
-    newOrders: orders.filter((o) => o.orderStatus === "NEW").length,
-    delivered: orders.filter((o) => o.orderStatus === "DELIVERED").length,
-    totalRevenue: orders.reduce(
-      (sum, o) => sum + (o.pricing?.finalAmount || 0),
+    totalOrders: vendorOrders.length,
+    newOrders: vendorOrders.filter((o) => o.orderStatus === "ACCEPTED").length,
+    delivered: vendorOrders.filter((o) => o.orderStatus === "DELIVERED").length,
+    totalRevenue: vendorOrders.reduce(
+      (sum, o) => sum + (o.pricing?.total || 0),
       0
     ),
     activeItems: menu.filter((m) => m.isAvailable).length,
@@ -79,8 +82,8 @@ export default function VendorDashboard() {
 
   const filteredOrders =
     orderFilter === "ALL"
-      ? orders
-      : orders.filter((o) => o.orderStatus === orderFilter);
+      ? vendorOrders
+      : vendorOrders.filter((o) => o.orderStatus === orderFilter);
 
   const handleAddMenuItem = async (e) => {
     e.preventDefault();
@@ -176,11 +179,16 @@ export default function VendorDashboard() {
     }
 
     try {
-      const res = await vendorService.updateOrderStatus(
-        orderId,
-        newStatus,
-        declineReason
-      );
+      let res;
+      if (newStatus === "DECLINED") {
+        res = await vendorService.declineOrder(orderId, declineReason);
+      } else {
+        res = await vendorService.updateOrderStatus(
+          orderId,
+          newStatus,
+          declineReason
+        );
+      }
       setOrders(
         orders.map((order) => (order._id === orderId ? res.data.order : order))
       );
@@ -188,6 +196,21 @@ export default function VendorDashboard() {
     } catch (error) {
       alert(
         "Error updating order: " +
+          (error.response?.data?.message || error.message)
+      );
+    }
+  };
+
+  const handleAcknowledgeOrder = async (orderId) => {
+    try {
+      const res = await vendorService.acknowledgeOrder(orderId);
+      setOrders(
+        orders.map((order) => (order._id === orderId ? res.data.order : order))
+      );
+      alert("Order acknowledged successfully");
+    } catch (error) {
+      alert(
+        "Error acknowledging order: " +
           (error.response?.data?.message || error.message)
       );
     }
@@ -294,6 +317,7 @@ export default function VendorDashboard() {
             showOrderDetails={showOrderDetails}
             onToggleDetails={setShowOrderDetails}
             onStatusChange={handleOrderStatusChange}
+            onAcknowledge={handleAcknowledgeOrder}
           />
 
           <MenuManagement

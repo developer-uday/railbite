@@ -63,20 +63,36 @@ const orderSchema = new mongoose.Schema(
     orderStatus: {
       type: String,
       enum: [
-        "NEW",
-        "ACKNOWLEDGED",
-        "PREPARING",
-        "OUT_FOR_DELIVERY",
-        "DELIVERED",
-        "DECLINED",
-        "CANCELLED",
+        "NEW",           // Initial status when user places order
+        "PLACED",        // Shown to user when order is placed
+        "PENDING",       // Awaiting vendor action, shown to user
+        "ACCEPTED",      // Admin accepts - shown to vendor
+        "CANCELLED",     // Shown to both user and vendor
+        "UNDELIVERED",   // Shown to both user and vendor
+        "ACKNOWLEDGED",  // Vendor acknowledges order
+        "OUT_FOR_DELIVERY", // Order is out for delivery
+        "DELIVERED",     // Order delivered to user confirned by vendor
+        "DECLINED",       // Admin declines - shown to vendor
+        "FAILED"       // failed to deliver
       ],
       default: "NEW",
     },
 
     notes: String,
 
+    adminNotes: String,
+
+    activity: [
+      {
+        timestamp: { type: Date, default: Date.now },
+        event: String,
+        details: mongoose.Schema.Types.Mixed,
+      },
+    ],
+
     deliveryDate: Date, // When the food will be delivered (estimated or user-provided)
+
+    deliveryTime: String, // Delivery time (HH:MM format)
 
     declineReason: String,
 

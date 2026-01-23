@@ -13,8 +13,8 @@ import {
 const router = express.Router();
 
 router.post("/", authMiddleware, authorize("user"), createOrder);
-router.get("/", authMiddleware, authorize("user"), getUserOrders);
 router.get("/recent", authMiddleware, authorize("user"), getRecentUserOrders);
+router.get("/", authMiddleware, authorize("user"), getUserOrders);
 router.get("/:orderId", authMiddleware, getOrderDetails);
 router.put("/:orderId/status", authMiddleware, updateOrderStatus);
 router.put("/:orderId/cancel", authMiddleware, authorize("user"), cancelOrder);

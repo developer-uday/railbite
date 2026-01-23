@@ -58,22 +58,44 @@ export const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
+    console.log(`\n🔵 LOGIN ATTEMPT - Email: ${email}`);
+
     // Validation
     if (!email || !password) {
+      console.log(`❌ Missing fields - Email: ${!email}, Password: ${!password}`);
       return res.status(400).json({ message: "Email and password required" });
     }
 
     // Find user
+    console.log(`🔍 Searching for user with email: ${email}`);
     const user = await User.findOne({ email }).select("+password");
+    
     if (!user) {
+      console.log(`❌ User not found for email: ${email}`);
       return res.status(404).json({ message: "User not found" });
     }
 
+    console.log(`✅ User found: ${user.name} (ID: ${user._id})`);
+    console.log(`📧 User email: ${user.email}`);
+    console.log(`👤 User role: ${user.role}`);
+    console.log(`🔐 Stored password hash exists: ${!!user.password}`);
+    console.log(`🔐 Password hash length: ${user.password?.length || 0}`);
+    console.log(`📝 Entered password length: ${password.length}`);
+
     // Check password
+    console.log(`🔐 Comparing passwords...`);
     const isPasswordValid = await bcrypt.compare(password, user.password);
+    
+    console.log(`🔐 Password comparison result: ${isPasswordValid}`);
+    console.log(`🔐 Entered password: ${password.substring(0, 3)}***${password.substring(password.length - 2)}`);
+    
     if (!isPasswordValid) {
+      console.log(`❌ PASSWORD MISMATCH for email: ${email}`);
+      console.log(`❌ Stored hash: ${user.password.substring(0, 20)}...`);
       return res.status(401).json({ message: "Invalid credentials" });
     }
+
+    console.log(`✅ Password valid!`);
 
     // Generate token
     const token = jwt.sign(
@@ -81,6 +103,8 @@ export const login = async (req, res) => {
       process.env.JWT_SECRET,
       { expiresIn: "7d" }
     );
+
+    console.log(`✅ Token generated successfully`);
 
     res.json({
       message: "Login successful",
@@ -93,6 +117,7 @@ export const login = async (req, res) => {
       }
     });
   } catch (error) {
+    console.error(`💥 LOGIN ERROR:`, error);
     res.status(500).json({ message: "Login failed", error: error.message });
   }
 };

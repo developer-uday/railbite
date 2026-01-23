@@ -7,6 +7,8 @@ import RegisterPage from './pages/RegisterPage';
 import UserDashboard from './pages/UserDashboard';
 import VendorDashboard from './pages/VendorDashboard';
 import VendorSetup from './pages/VendorSetup';
+import OrdersPage from './pages/OrdersPage';
+import OrderDetailsPage from './pages/OrderDetailsPage';
 
 function ProtectedRoute({ children, allowedRoles }) {
   const { user, loading } = useAuth();
@@ -64,8 +66,26 @@ function AppRoutes() {
       <Route
         path="/admin"
         element={
-          <ProtectedRoute allowedRoles={['admin']}>
+          <ProtectedRoute allowedRoles={['admin', 'manager']}>
             <AdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/orders"
+        element={
+          <ProtectedRoute allowedRoles={['admin', 'manager']}>
+            <OrdersPage />
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/orders/:orderId"
+        element={
+          <ProtectedRoute allowedRoles={['admin', 'manager']}>
+            <OrderDetailsPage />
           </ProtectedRoute>
         }
       />
@@ -78,7 +98,7 @@ function AppRoutes() {
 
 function App() {
   return (
-    <Router>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <AppRoutes />
     </Router>
   );

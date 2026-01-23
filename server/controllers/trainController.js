@@ -14,7 +14,8 @@ export const checkTrain = async (req, res) => {
       return res.status(404).json({ message: "Train not found" });
     }
 
-    // Extract train number from train_name (e.g., "15657 Brahmputra Mail Running Status" -> "15657")
+    // Extract train number from train_name (e.g., "15657 Brahmputra Mail Running Status" -> "15657 Brahmputra Mail")
+    const cleanedTrainName = data.train_name.replace(/\s+Running Status\s*$/i, '').trim();
     const trainNumber = data.train_name.split(' ')[0];
     
     // Extract complete station data from the data array
@@ -37,7 +38,7 @@ export const checkTrain = async (req, res) => {
 
     res.json({
       trainNo: trainNumber,
-      trainName: data.train_name,
+      trainName: cleanedTrainName,
       stations: stations,
       source: stations[0].name,
       destination: stations[stations.length - 1].name,

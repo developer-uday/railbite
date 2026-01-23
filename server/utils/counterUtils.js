@@ -25,5 +25,5 @@ export const getNextSequence = async (counterName) => {
  */
 export const generateOrderId = async () => {
   const nextNum = await getNextSequence("orderId");
-  return `ORD-${String(nextNum).padStart(6, "0")}`;
+  return `${String(nextNum).padStart(6, "0")}`;
 };

@@ -55,6 +55,7 @@ export const vendorService = {
   getOrders: () => api.get('/vendors/orders'),
   getOrderDetails: (orderId) => api.get(`/vendors/orders/${orderId}`),
   acknowledgeOrder: (orderId) => api.patch(`/vendors/orders/${orderId}/acknowledge`),
+  declineOrder: (orderId, declineReason) => api.patch(`/vendors/orders/${orderId}/decline`, { declineReason }),
   updateOrderStatus: (orderId, status, declineReason) => 
     api.patch(`/vendors/orders/${orderId}/status`, { status, declineReason }),
 };
@@ -64,8 +65,35 @@ export const adminService = {
   getStats: () => api.get('/admin/stats'),
   getUsers: () => api.get('/admin/users'),
   getVendors: () => api.get('/admin/vendors'),
-  suspendVendor: (id) => api.put(`/admin/vendors/${id}/suspend`),
+  getRestaurants: () => api.get('/admin/restaurants'),
   getOrders: () => api.get('/admin/orders'),
+  
+  // User Management
+  deactivateUser: (userId) => api.put(`/admin/users/${userId}/deactivate`),
+  activateUser: (userId) => api.put(`/admin/users/${userId}/activate`),
+  deleteUser: (userId) => api.delete(`/admin/users/${userId}`),
+  
+  // Vendor Management
+  suspendVendor: (vendorId) => api.put(`/admin/vendors/${vendorId}/suspend`),
+  approveVendor: (vendorId) => api.put(`/admin/vendors/${vendorId}/approve`),
+  rejectVendor: (vendorId) => api.put(`/admin/vendors/${vendorId}/reject`),
+  deleteVendor: (vendorId) => api.delete(`/admin/vendors/${vendorId}`),
+  
+  // Restaurant Management
+  approveRestaurant: (restaurantId) => api.put(`/admin/restaurants/${restaurantId}/approve`),
+  rejectRestaurant: (restaurantId) => api.put(`/admin/restaurants/${restaurantId}/reject`),
+  deleteRestaurant: (restaurantId) => api.delete(`/admin/restaurants/${restaurantId}`),
+  
+  // Order Management
+  cancelOrder: (orderId) => api.put(`/admin/orders/${orderId}/cancel`),
+  updateOrder: (orderId, data) => api.put(`/admin/orders/${orderId}`, data),
+  
+  // Manager Management
+  createManager: (data) => api.post(`/admin/managers`, data),
+  getManagers: () => api.get(`/admin/managers`),
+  getManager: (managerId) => api.get(`/admin/managers/${managerId}`),
+  updateManager: (managerId, data) => api.put(`/admin/managers/${managerId}`, data),
+  deleteManager: (managerId) => api.delete(`/admin/managers/${managerId}`),
 };
 
 // Food API (for customers)

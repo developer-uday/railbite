@@ -1,17 +1,31 @@
+import React from 'react';
+
 export default function OrderCard({
   order,
   isExpanded,
   onToggleExpand,
   onStatusChange,
+  onAcknowledge,
 }) {
+  // Debug: Log order details
+  React.useEffect(() => {
+    console.log("OrderCard rendered with order:", {
+      orderId: order.orderId,
+      status: order.orderStatus,
+      isExpanded,
+      shouldShowButtons: order.orderStatus !== "UNDELIVERED" && order.orderStatus !== "CANCELLED" && order.orderStatus !== "DECLINED",
+    });
+  }, [order, isExpanded]);
+
   const getStatusBadgeColor = (status) => {
     const colors = {
-      NEW: "bg-yellow-100 text-yellow-800",
-      ACKNOWLEDGED: "bg-blue-100 text-blue-800",
+      ACCEPTED: "bg-blue-100 text-blue-800",
       OUT_FOR_DELIVERY: "bg-purple-100 text-purple-800",
       DELIVERED: "bg-green-100 text-green-800",
       DECLINED: "bg-red-100 text-red-800",
-      FAILED: "bg-red-100 text-red-800",
+      FAILED: "bg-orange-100 text-orange-800",
+      CANCELLED: "bg-red-100 text-red-800",
+      UNDELIVERED: "bg-orange-100 text-orange-800",
     };
     return colors[status] || "bg-gray-100 text-gray-800";
   };
@@ -34,7 +48,7 @@ export default function OrderCard({
           )}
         </div>
         <div className="text-right">
-          <p className="text-lg font-bold">₹{order.pricing?.finalAmount}</p>
+          <p className="text-lg font-bold">₹{order.pricing?.total || 0}</p>
           <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${getStatusBadgeColor(order.orderStatus)}`}>
             {order.orderStatus}
           </span>
@@ -118,50 +132,74 @@ export default function OrderCard({
           )}
 
           {/* Action Buttons - IMPROVED VISIBILITY */}
-          {order.orderStatus !== "DELIVERED" && order.orderStatus !== "DECLINED" && (
+          {order.orderStatus !== "UNDELIVERED" && order.orderStatus !== "CANCELLED" && order.orderStatus !== "DECLINED" && (
             <div className="grid grid-cols-2 gap-2 pt-3 border-t border-gray-300">
-              {order.orderStatus === "NEW" && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onStatusChange(order._id, "ACKNOWLEDGED");
-                  }}
-                  className="bg-blue-600 text-white py-2 rounded font-semibold transition hover:bg-blue-700 active:bg-blue-800 shadow-md"
-                >
-                  ✓ Acknowledge
-                </button>
+              {order.orderStatus === "ACCEPTED" && (
+                <>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onAcknowledge(order._id);
+                    }}
+                    className="bg-blue-600 text-white py-2 rounded font-semibold transition hover:bg-blue-700 active:bg-blue-800 shadow-md"
+                  >
+                    ✓ Acknowledge
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onStatusChange(order._id, "DECLINED");
+                    }}
+                    className="bg-red-600 text-white py-2 rounded font-semibold transition hover:bg-red-700 active:bg-red-800 shadow-md"
+                  >
+                    ✗ Decline
+                  </button>
+                </>
               )}
               {order.orderStatus === "ACKNOWLEDGED" && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onStatusChange(order._id, "OUT_FOR_DELIVERY");
-                  }}
-                  className="bg-purple-600 text-white py-2 rounded font-semibold transition hover:bg-purple-700 active:bg-purple-800 shadow-md"
-                >
-                  📦 Out for Delivery
-                </button>
+                <>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onStatusChange(order._id, "OUT_FOR_DELIVERY");
+                    }}
+                    className="bg-purple-600 text-white py-2 rounded font-semibold transition hover:bg-purple-700 active:bg-purple-800 shadow-md"
+                  >
+                    📦 Out for Delivery
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onStatusChange(order._id, "DECLINED");
+                    }}
+                    className="bg-red-600 text-white py-2 rounded font-semibold transition hover:bg-red-700 active:bg-red-800 shadow-md"
+                  >
+                    ✗ Decline
+                  </button>
+                </>
               )}
               {order.orderStatus === "OUT_FOR_DELIVERY" && (
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onStatusChange(order._id, "DELIVERED");
-                  }}
-                  className="bg-green-600 text-white py-2 rounded font-semibold transition hover:bg-green-700 active:bg-green-800 shadow-md"
-                >
-                  ✓ Delivered
-                </button>
+                <>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onStatusChange(order._id, "DELIVERED");
+                    }}
+                    className="bg-green-600 text-white py-2 rounded font-semibold transition hover:bg-green-700 active:bg-green-800 shadow-md col-span-2"
+                  >
+                    ✓ Delivered
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onStatusChange(order._id, "FAILED");
+                    }}
+                    className="bg-orange-600 text-white py-2 rounded font-semibold transition hover:bg-orange-700 active:bg-orange-800 shadow-md col-span-2"
+                  >
+                    ⚠ Failed Delivery
+                  </button>
+                </>
               )}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onStatusChange(order._id, "DECLINED");
-                }}
-                className="bg-red-600 text-white py-2 rounded font-semibold transition hover:bg-red-700 active:bg-red-800 shadow-md col-span-2 md:col-span-1"
-              >
-                ✗ Decline
-              </button>
             </div>
           )}
         </div>

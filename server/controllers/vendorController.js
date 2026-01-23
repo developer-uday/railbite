@@ -331,7 +331,13 @@ export const getVendorOrders = async (req, res) => {
       return res.status(404).json({ success: false, message: "Restaurant not found" });
     }
 
-    const orders = await Order.find({ restaurant: restaurant._id })
+    // Only return orders with vendor-visible statuses
+    const vendorVisibleStatuses = ["ACCEPTED", "ACKNOWLEDGED", "OUT_FOR_DELIVERY", "DELIVERED", "DECLINED", "FAILED", "UNDELIVERED"];
+    
+    const orders = await Order.find({ 
+      restaurant: restaurant._id,
+      orderStatus: { $in: vendorVisibleStatuses }
+    })
       .sort({ createdAt: -1 });
 
     res.json({ success: true, orders });
@@ -395,13 +401,33 @@ export const updateOrderStatus = async (req, res) => {
       });
     }
 
-    // Validate status
-    const validStatuses = ["ACKNOWLEDGED", "OUT_FOR_DELIVERY", "DECLINED", "FAILED", "DELIVERED"];
+    // Validate status transitions and allowed statuses
+    const validStatuses = ["OUT_FOR_DELIVERY", "DECLINED", "FAILED", "DELIVERED"];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
         message: `Invalid status. Allowed: ${validStatuses.join(", ")}`,
       });
+    }
+
+    // ACKNOWLEDGED orders can go to OUT_FOR_DELIVERY or DECLINED
+    if (order.orderStatus === "ACKNOWLEDGED") {
+      if (!["OUT_FOR_DELIVERY", "DECLINED"].includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: "ACKNOWLEDGED orders can only be marked OUT_FOR_DELIVERY or DECLINED",
+        });
+      }
+    }
+
+    // OUT_FOR_DELIVERY orders can go to DELIVERED or FAILED
+    if (order.orderStatus === "OUT_FOR_DELIVERY") {
+      if (!["DELIVERED", "FAILED"].includes(status)) {
+        return res.status(400).json({
+          success: false,
+          message: "OUT_FOR_DELIVERY orders can only be marked DELIVERED or FAILED",
+        });
+      }
     }
 
     // DECLINED requires mandatory reason
@@ -417,8 +443,18 @@ export const updateOrderStatus = async (req, res) => {
       orderStatus: status,
     };
 
+    // Add activity log entry
+    const activityEvent = `Vendor ${status === "DECLINED" ? "declined" : status === "OUT_FOR_DELIVERY" ? "marked out for delivery" : status === "DELIVERED" ? "marked delivered" : "marked failed"} order`;
+    const activityDetails = {
+      previousStatus: order.orderStatus,
+      newStatus: status,
+      actor: "vendor",
+      timestamp: new Date(),
+    };
+
     if (status === "DECLINED") {
       updateData.declineReason = declineReason;
+      activityDetails.reason = declineReason;
 
       // Auto-refund if prepaid
       if (order.paymentMethod === "PREPAID") {
@@ -435,6 +471,16 @@ export const updateOrderStatus = async (req, res) => {
       updateData.deliveredAt = new Date();
     }
 
+    // Add to activity log
+    if (!updateData.activity) {
+      updateData.activity = order.activity || [];
+    }
+    updateData.activity.push({
+      timestamp: new Date(),
+      event: activityEvent,
+      details: activityDetails,
+    });
+
     const updatedOrder = await Order.findByIdAndUpdate(orderId, updateData, {
       new: true,
       runValidators: true,
@@ -448,7 +494,7 @@ export const updateOrderStatus = async (req, res) => {
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
-};
+}
 
 export const acknowledgeOrder = async (req, res) => {
   try {
@@ -469,28 +515,126 @@ export const acknowledgeOrder = async (req, res) => {
       return res.status(404).json({ success: false, message: "Order not found" });
     }
 
-    if (order.orderStatus !== "NEW") {
+    // Vendor can only acknowledge ACCEPTED orders
+    if (order.orderStatus !== "ACCEPTED") {
       return res.status(400).json({
         success: false,
-        message: "Only NEW orders can be acknowledged",
+        message: "Only ACCEPTED orders can be acknowledged by vendor",
       });
     }
 
+    // Add activity log entry
+    const activityEntry = {
+      timestamp: new Date(),
+      event: "Vendor acknowledged order",
+      details: {
+        previousStatus: order.orderStatus,
+        newStatus: "ACKNOWLEDGED",
+        actor: "vendor",
+        timestamp: new Date(),
+      },
+    };
+
+    const updateData = {
+      orderStatus: "ACKNOWLEDGED",
+      activity: [...(order.activity || []), activityEntry],
+    };
+
     const updated = await Order.findByIdAndUpdate(
       orderId,
-      { orderStatus: "ACKNOWLEDGED" },
-      { new: true }
+      updateData,
+      { new: true, runValidators: true }
     );
 
     res.json({
       success: true,
-      message: "Order acknowledged",
+      message: "Order acknowledged successfully",
       order: updated,
     });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });
   }
-};
+}
+
+export const declineOrder = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+    const { declineReason } = req.body;
+
+    if (!declineReason) {
+      return res.status(400).json({
+        success: false,
+        message: "Decline reason is mandatory",
+      });
+    }
+
+    const restaurant = await Restaurant.findOne({ vendor: req.user.id });
+
+    if (!restaurant) {
+      return res.status(404).json({ success: false, message: "Restaurant not found" });
+    }
+
+    const order = await Order.findOne({
+      _id: orderId,
+      restaurant: restaurant._id,
+    });
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    // Vendor can only decline ACCEPTED orders (before acknowledging) or ACKNOWLEDGED orders
+    if (!["ACCEPTED", "ACKNOWLEDGED"].includes(order.orderStatus)) {
+      return res.status(400).json({
+        success: false,
+        message: `Cannot decline order with status ${order.orderStatus}`,
+      });
+    }
+
+    // Add activity log entry
+    const activityEntry = {
+      timestamp: new Date(),
+      event: "Vendor declined order",
+      details: {
+        previousStatus: order.orderStatus,
+        newStatus: "DECLINED",
+        actor: "vendor",
+        reason: declineReason,
+        timestamp: new Date(),
+      },
+    };
+
+    const updateData = {
+      orderStatus: "DECLINED",
+      declineReason: declineReason,
+      activity: [...(order.activity || []), activityEntry],
+    };
+
+    // Auto-refund if prepaid
+    if (order.paymentMethod === "PREPAID") {
+      updateData.refundedAmount = order.pricing.finalAmount;
+      updateData.refundedAt = new Date();
+      updateData.pricing = {
+        ...order.pricing,
+        paymentStatus: "REFUNDED",
+      };
+    }
+
+    const declined = await Order.findByIdAndUpdate(
+      orderId,
+      updateData,
+      { new: true, runValidators: true }
+    );
+
+    res.json({
+      success: true,
+      message: "Order declined successfully",
+      order: declined,
+    });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+}
 
 export const getStoreStatus = async (req, res) => {
   try {

@@ -1,5 +1,7 @@
 import Order from "../models/Order.js";
 import Menu from "../models/Menu.js";
+import User from "../models/User.js";
+import Restaurant from "../models/Restaurant.js";
 
 /* ===================== CREATE ORDER ===================== */
 
@@ -21,16 +23,50 @@ export const createOrder = async (req, res) => {
       });
     }
 
-    // Basic contact validation
-    if (!customer.name || !customer.email) {
-      return res.status(400).json({ success: false, message: 'Customer name and email are required' });
-    }
-    const emailRegex = /^\S+@\S+\.\S+$/;
-    if (!emailRegex.test(customer.email)) {
-      return res.status(400).json({ success: false, message: 'Invalid customer email' });
+    // Check if user is active (if user is authenticated)
+    if (req.user?.id) {
+      const user = await User.findById(req.user.id);
+      if (!user || !user.isActive) {
+        return res.status(403).json({ 
+          success: false,
+          message: "Your account has been deactivated. You cannot place orders." 
+        });
+      }
     }
 
-    // Resolve menu items from DB to ensure accurate name/price
+    // Check if restaurant/vendor is active
+    const restaurant = await Restaurant.findById(restaurantId);
+    if (!restaurant) {
+      return res.status(404).json({ 
+        success: false,
+        message: "Restaurant not found" 
+      });
+    }
+
+    if (!restaurant.isActive) {
+      return res.status(403).json({ 
+        success: false,
+        message: "This restaurant is not currently accepting orders" 
+      });
+    }
+
+    // Check if vendor is active
+    const vendor = await User.findById(restaurant.vendor);
+    if (!vendor || !vendor.isActive) {
+      return res.status(403).json({ 
+        success: false,
+        message: "This restaurant's vendor is not active. Orders cannot be placed." 
+      });
+    }
+
+    // Basic contact validation
+    if (!customer.name || !customer.phone) {
+      return res.status(400).json({ success: false, message: 'Customer name and phone are required' });
+    }
+    if (!journey.pnr) {
+      return res.status(400).json({ success: false, message: 'Journey PNR is required' });
+    }
+     // Resolve menu items from DB to ensure accurate name/price
     const itemIds = items.map(i => i.itemId).filter(Boolean);
     const menus = await Menu.find({ _id: { $in: itemIds } });
     const menuMap = new Map(menus.map(m => [String(m._id), m]));
@@ -74,6 +110,7 @@ export const createOrder = async (req, res) => {
         doj: journey?.doj,
         pnr: journey?.pnr,
         seat: journey?.seat,
+        coach: journey?.coach,
         station: journey?.station,
       },
       items: validatedItems,
@@ -88,6 +125,7 @@ export const createOrder = async (req, res) => {
       paymentStatus: paymentMethod === 'PREPAID' ? 'PAID' : 'PENDING',
       notes: notes,
       deliveryDate: req.body.deliveryDate,
+      deliveryTime: req.body.deliveryTime,
       orderStatus: 'NEW',
     });
 
@@ -113,7 +151,10 @@ export const createOrder = async (req, res) => {
 
 export const getUserOrders = async (req, res) => {
   try {
-    const orders = await Order.find({ user: req.user.id })
+    // Users see ALL their orders
+    const orders = await Order.find({ 
+      user: req.user.id
+    })
       .populate("restaurant", "name")
       .sort({ createdAt: -1 });
 
@@ -127,8 +168,11 @@ export const getUserOrders = async (req, res) => {
 export const getRecentUserOrders = async (req, res) => {
   try {
     const limit = parseInt(req.query.limit, 10) || 5;
-    const orders = await Order.find({ user: req.user.id })
-      .select("orderId orderStatus paymentStatus pricing.total createdAt items restaurant")
+    // Users see ALL their recent orders
+    const orders = await Order.find({ 
+      user: req.user.id
+    })
+      .select("orderId orderStatus paymentStatus paymentMethod pricing.total createdAt items restaurant journey")
       .populate("restaurant", "name")
       .sort({ createdAt: -1 })
       .limit(limit);
@@ -139,6 +183,8 @@ export const getRecentUserOrders = async (req, res) => {
       orderId: o.orderId,
       orderStatus: o.orderStatus,
       paymentStatus: o.paymentStatus,
+      paymentMethod: o.paymentMethod,
+      journey: o.journey,
       total: o.pricing?.total || 0,
       itemCount: Array.isArray(o.items) ? o.items.length : 0,
       itemsPreview: Array.isArray(o.items) ? o.items.slice(0,2).map(it => it.name).filter(Boolean) : [],
@@ -170,17 +216,35 @@ export const getOrderDetails = async (req, res) => {
 export const updateOrderStatus = async (req, res) => {
   try {
     const { status } = req.body;
+    const order = await Order.findById(req.params.orderId);
 
-    const order = await Order.findByIdAndUpdate(
+    if (!order)
+      return res.status(404).json({ message: "Order not found" });
+
+    // Admin can only accept NEW orders (change to ACCEPTED)
+    // or cancel/mark undelivered at any point
+    const allowedStatuses = ["ACCEPTED", "CANCELLED", "UNDELIVERED"];
+    
+    if (!allowedStatuses.includes(status)) {
+      return res.status(400).json({ 
+        message: "Invalid status. Admin can only set: ACCEPTED, CANCELLED, UNDELIVERED" 
+      });
+    }
+
+    // If accepting, order must be in NEW status
+    if (status === "ACCEPTED" && order.orderStatus !== "NEW") {
+      return res.status(400).json({ 
+        message: "Can only accept orders with NEW status" 
+      });
+    }
+
+    const updatedOrder = await Order.findByIdAndUpdate(
       req.params.orderId,
       { orderStatus: status },
       { new: true }
     );
 
-    if (!order)
-      return res.status(404).json({ message: "Order not found" });
-
-    res.json({ message: "Order status updated", order });
+    res.json({ message: "Order status updated", order: updatedOrder });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -210,7 +274,14 @@ export const getRestaurantOrders = async (req, res) => {
   try {
     const { restaurantId } = req.params;
 
-    const orders = await Order.find({ restaurant: restaurantId })
+    // Vendors only see: ACCEPTED, CANCELLED, UNDELIVERED
+    // (NOT NEW or PENDING - those are admin-only)
+    const allowedStatuses = ["ACCEPTED", "CANCELLED", "UNDELIVERED"];
+    
+    const orders = await Order.find({ 
+      restaurant: restaurantId,
+      orderStatus: { $in: allowedStatuses }
+    })
       .sort({ createdAt: -1 });
 
     res.json(orders);
