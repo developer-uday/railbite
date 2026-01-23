@@ -27,7 +27,7 @@ const allowedOrigins = process.env.NODE_ENV === 'production'
 app.use(cors({
   origin: allowedOrigins,
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 // Note: global `cors()` above handles preflight for configured origins.
@@ -73,3 +73,5 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚂 RAILBITE Server running on port ${PORT}`);
 });
+
+export default app;
