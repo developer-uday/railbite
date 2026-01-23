@@ -20,22 +20,15 @@ const app = express();
 app.use(helmet());
 // Configure CORS: allow origins from env or default dev origin, support credentials
 // Prefer `CORS_ORIGINS` (comma-separated) or fall back to `CLIENT_URL` from .env
-const allowedOrigins = process.env.CORS_ORIGINS
-  ? process.env.CORS_ORIGINS.split(',').map(s => s.trim())
-  : (process.env.CLIENT_URL ? [process.env.CLIENT_URL] : ["http://localhost:5173", "http://localhost:3000"]);
+const allowedOrigins = process.env.NODE_ENV === 'production' 
+  ? ['https://railbite.vercel.app']
+  : ['http://localhost:5173'];
 
 app.use(cors({
-  origin: (origin, callback) => {
-    // allow requests with no origin (e.g., mobile apps, curl)
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      return callback(null, true);
-    }
-    return callback(new Error('CORS policy: Origin not allowed'));
-  },
+  origin: allowedOrigins,
   credentials: true,
-  methods: ['GET','HEAD','PUT','PATCH','POST','DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'HEAD'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 // Note: global `cors()` above handles preflight for configured origins.
 // Avoid calling `app.options('*', ...)` because some path-to-regexp versions reject '*' as a path.
