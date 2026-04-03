@@ -89,7 +89,7 @@ npm run dev
 
 ## 📌 Author
 
-**Uday Singh**
+**Uday Pratap Singh**
 
 ---
 
