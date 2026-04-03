@@ -90,7 +90,6 @@ npm run dev
 ## 📌 Author
 
 **Uday Singh**
-Web Developer | MERN Stack Enthusiast
 
 ---
 
